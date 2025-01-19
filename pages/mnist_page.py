@@ -1,9 +1,76 @@
-import keras
-mnist_model = keras.models.load_model('models/mnist_model.keras')
+import numpy as np
+import threading
 
-def predict_digit(pixel_array):
-    processed_array = center_image(pixel_array).reshape(1, 28, 28, 1) / 255
-    return mnist_model.predict(processed_array).argmax()
+import torch
+import torch.nn.functional as F
+
+import torch
+import torch.nn as nn  # Assuming you've defined MNISTNet class earlier
+import torch
+torch.set_num_threads(1)
+
+class MNISTModel(nn.Module):
+    def __init__(self):
+        super(MNISTModel, self).__init__()
+        self.conv1 = nn.Conv2d(1, 32, 3, 1)
+        self.conv2 = nn.Conv2d(32, 64, 3, 1)
+        self.dropout1 = nn.Dropout(0.25)
+        self.dropout2 = nn.Dropout(0.5)
+        # Calculate the correct input size for fc1 dynamically
+        self.fc1 = nn.Linear(1600, 128)  # Changed from 9216 to 1600
+        self.fc2 = nn.Linear(128, 10)
+
+    def forward(self, x):
+        x = self.conv1(x)
+        x = nn.functional.relu(x)
+        x = nn.functional.max_pool2d(x, 2)
+        x = self.conv2(x)
+        x = nn.functional.relu(x)
+        x = nn.functional.max_pool2d(x, 2)
+        x = self.dropout1(x)
+        x = torch.flatten(x, 1)
+        x = self.fc1(x) # The issue was here
+        x = nn.functional.relu(x)
+        x = self.dropout2(x)
+        x = self.fc2(x)
+        output = nn.functional.log_softmax(x, dim=1)
+        return output
+
+# Instantiate the model
+mnist_model = MNISTModel()
+
+
+# Load the saved state dictionary
+mnist_model.load_state_dict(torch.load('models/mnist_model.pth'))
+
+# Set the model to evaluation mode
+mnist_model.eval()
+
+# Now you can use the loaded model for inference
+# For example, if you have an input tensor 'input_tensor':
+# output = model(input_tensor)
+# ... process the output ...
+
+def predict_digit(pixel_array, model):
+    # Ensure the pixel_array is of a supported type (e.g., uint8 or float32)
+    pixel_array = pixel_array.astype(np.float32)  # Convert to float32 or uint8
+
+    # Assuming pixel_array is a numpy array of shape (28, 28)
+    # Convert numpy array to PyTorch tensor, add batch and channel dimensions
+    processed_tensor = torch.from_numpy(center_image(pixel_array)).float().unsqueeze(0).unsqueeze(0) / 255
+
+    # Ensure model is in evaluation mode
+    model.eval()
+
+    # Disable gradient computation for inference
+    with torch.no_grad():
+        # Forward pass through the model
+        output = model(processed_tensor)
+        # Get the index of the max log-probability
+        prediction = output.argmax(dim=1).item()
+
+    return prediction
+
 
 from scipy.ndimage import center_of_mass, shift
 def center_image(image):
@@ -95,13 +162,20 @@ import numpy as np
     prevent_initial_call=True
 )
 def on_new_annotation(relayout_data):
+    global mnist_model
     if "shapes" in relayout_data:
         shapes = relayout_data["shapes"]
         global debug_shapes
         debug_shapes = shapes
         path_data_list = [shape['path'] for shape in shapes]
         pixel_array = path_to_pixel_matrix(path_data_list)
-        pred = predict_digit(pixel_array)
+        with open("example.txt", "a") as file:
+            file.write('B4 PRED')
+        pred = predict_digit(pixel_array,mnist_model)
+        with open("example.txt", "a") as file:
+            file.write(f"After PRED {pred}")
+
+
         return f"You drew a {pred}"
     return "No drawing yet!"
 
@@ -158,5 +232,4 @@ def single_path_to_pixel_matrix(path_data, width, height):
     pixel_matrix = np.array(img)
 
     return pixel_matrix
-
 

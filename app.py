@@ -6,6 +6,7 @@ from dash import html, dcc, Input, Output, State, _dash_renderer
 import plotly.express as px
 _dash_renderer._set_react_version("18.2.0")
 from pages.mnist_page import layout as mnist_layout,img
+from pages.sentiment import  layout as sentiment_layout, df_text,generate_table,ROWS_PER_PAGE
 
 # Data/Images/etc...
 ##############################################################################
@@ -245,6 +246,8 @@ def toggle_sidebar(n_clicks, is_sidebar_visible):
 def handle_navigation(pathname):
     if pathname == "/mnist-app":
         return SIDEBAR_HIDDEN_STYLE, CONTENT_FULL_STYLE, False
+    elif pathname == "/sentiment-app":
+        return SIDEBAR_HIDDEN_STYLE, CONTENT_FULL_STYLE, False
     else:
         return SIDEBAR_STYLE, CONTENT_STYLE, True
 
@@ -266,16 +269,36 @@ def render_page_content(pathname):
         return html.Div([
             html.H1("Apps Page"),
             dbc.Button("Go to MNIST App", id="mnist-btn", n_clicks=0, href="/mnist-app", color="primary", className="mb-3"),
+            html.Br(),
+            dbc.Button("Go to Stock News Sentiment App", id="sentiment-btn", n_clicks=0, href="/sentiment-app", color="primary",
+                       className="mb-3"),
+
         ])
     elif pathname == "/mnist-app":
         return html.Div([
             dbc.Row(dbc.Col(mnist_layout)),
             dbc.Button("Back to Main Menu", href="/", color="secondary", className="mt-3"),
         ])
+    elif pathname == "/sentiment-app":
+        return html.Div([
+            dbc.Row(dbc.Col(sentiment_layout)),
+            dbc.Button("Back to Main Menu", href="/", color="secondary", className="mt-3"),
+        ])
     elif pathname == "/":
         return html.Div([
             html.H1("Trade Mamba!"),
-            html.Div("Welcome to Trade Mamba's website!", className="mb-4"),
+            dbc.Row(
+                dbc.Col(
+                    html.Div(
+                        """
+                        Welcome to Trade Mamba's website where I have tutorials and data science apps.
+                        """,
+                        className="lead",
+                    )
+                ),
+                className="mb-4",
+            ),
+            dbc.Button("See More!", id="toggle-button", n_clicks=1, className="mb-3"),
             dbc.Row(
                 dbc.Col(
                     html.Div(
@@ -288,7 +311,6 @@ def render_page_content(pathname):
                 ),
                 className="mb-4",
             ),
-            dbc.Button("See More!", id="toggle-button", n_clicks=1, className="mb-3"),
             dbc.Row(dbc.Col(html.H1("Python Tutorial Videos:"))),
             dbc.Row(
                 children=[
@@ -323,3 +345,29 @@ def reset_graph(n_clicks):
         yaxis=dict(visible=False, fixedrange=True)  # Hide y-axis
     )
     return fig
+
+# Callbacks for table and pagination
+@app.callback(
+    Output("table-container", "children"),
+    Output("current-page", "children"),
+    [Input("stock-dropdown", "value"), Input("prev-page", "n_clicks"), Input("next-page", "n_clicks")],
+    [State("current-page", "children")],
+)
+def update_table(selected_symbol, prev_clicks, next_clicks, current_page):
+    if not current_page:
+        current_page = "Page 1"
+    page_number = int(current_page.split()[-1]) - 1
+
+    # Adjust page based on navigation buttons
+    page_number = max(0, page_number + (1 if next_clicks > prev_clicks else -1))
+
+    if selected_symbol:
+        filtered_df = df_text[df_text["symbol"] == selected_symbol]
+    else:
+        filtered_df = df_text
+
+    # Calculate max page
+    max_page = (len(filtered_df) - 1) // ROWS_PER_PAGE
+    page_number = min(page_number, max_page)
+
+    return generate_table(filtered_df, page=page_number), f"Page {page_number + 1}"
