@@ -70,6 +70,7 @@ def generate_table(dataframe, page=0):
 layout = html.Div(
     style={"margin": "20px"},
     children=[
+        html.H1("Benzinga Sentiment Analysis App",style={'text-align':'center','fontSize':'40px'}),
         html.H1(
             "Select a Stock Symbol",
             style={"textAlign": "center", "marginBottom": "20px", "fontWeight": "bold"},

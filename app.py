@@ -263,7 +263,7 @@ def render_page_content(pathname):
             html.Br(),
             html.A("Medium Blog", href='https://medium.com/@trademamba', target="_blank"),
             html.Br(),
-            html.A("Sample Apps", href='TODO', target="_blank")
+            html.A("X",href="https://x.com/AdiDror6", target="_blank")
         ])
     elif pathname == "/page-2":
         return html.Div([
@@ -298,7 +298,7 @@ def render_page_content(pathname):
                 ),
                 className="mb-4",
             ),
-            dbc.Button("See More!", id="toggle-button", n_clicks=1, className="mb-3"),
+            dbc.Button("Click Here to See More!", id="toggle-button", n_clicks=1, className="mb-3"),
             dbc.Row(
                 dbc.Col(
                     html.Div(
